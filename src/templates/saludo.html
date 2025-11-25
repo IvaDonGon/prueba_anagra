@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Saludo Flask</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+        input, button {
+            font-size: 16px;
+            padding: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>👋 ¡Bienvenido!</h1>
+    <p>Escribe tu nombre:</p>
+    <form action="/saludo" method="get">
+        <input type="text" id="nombre" name="nombre" placeholder="Tu nombre aquí" required>
+        <button type="submit">Saludar</button>
+    </form>
+
+    {% if nombre %}
+        <h2>Hola, {{ nombre }} 😄</h2>
+    {% endif %}
+</body>
+</html>

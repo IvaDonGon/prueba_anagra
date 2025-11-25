@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Validar RUT - Chile</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <style>
+        body { font-family: Arial, sans-serif; max-width:600px; margin:40px auto; padding:0 16px; }
+        label { display:block; margin-bottom:8px; font-weight:600 }
+        input[type=text] { width:100%; padding:8px; font-size:16px; }
+        button { margin-top:8px; padding:10px 14px; font-size:16px }
+        .result { margin-top:16px; font-size:18px }
+        .ok { color: green }
+        .bad { color: red }
+        small { color:#666 }
+    </style>
+</head>
+<body>
+    <h1>Validar RUT (Chile)</h1>
+    <p>Ingresa tu RUT y presiona <strong>Validar</strong>. Ejemplos válidos: <code>12.345.678-5</code> o <code>12345678-5</code>.</p>
+
+    <label for="rut">RUT:</label>
+    <input id="rut" type="text" placeholder="12.345.678-5" />
+    <button id="btn">Validar</button>
+
+    <div class="result" id="result" aria-live="polite"></div>
+
+    <script>
+        // Normaliza: elimina puntos y espacios, separa guión
+        function normalize(rut) {
+            return rut.replace(/\./g, '').replace(/\s+/g, '').toUpperCase();
+        }
+
+        function calcDv(num) {
+            let M = 0, S = 1;
+            for (; num; num = Math.floor(num/10)) {
+                S = (S + num % 10 * (9 - M++ % 6)) % 11;
+            }
+            return S ? String(S - 1) : 'K';
+        }
+
+        function validarRutLocal(rutRaw) {
+            if (!rutRaw) return false;
+            const rut = normalize(rutRaw);
+            let body, dv;
+            if (rut.indexOf('-') >= 0) {
+                [body, dv] = rut.split('-');
+            } else {
+                dv = rut.slice(-1);
+                body = rut.slice(0, -1);
+            }
+            if (!/^[0-9]+$/.test(body)) return false;
+            const computed = calcDv(parseInt(body, 10));
+            return computed === dv;
+        }
+
+        async function validarRutServidor(rutRaw) {
+            try {
+                const res = await fetch('/validar_rut', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rut: rutRaw })
+                });
+                if (!res.ok) throw new Error('Error en servidor');
+                return await res.json();
+            } catch (e) {
+                return { error: String(e) };
+            }
+        }
+
+        document.getElementById('btn').addEventListener('click', async function () {
+            const rut = document.getElementById('rut').value;
+            const el = document.getElementById('result');
+
+            // Validación cliente rápida
+            const okLocal = validarRutLocal(rut);
+            if (!okLocal) {
+                el.innerHTML = '<span class="bad">✖ RUT inválido (validación local)</span> <small>Revisa el formato y el dígito verificador</small>';
+                return;
+            }
+
+            // Enviar al servidor para validación final
+            el.innerHTML = '<span>Validando en servidor…</span>';
+            const srv = await validarRutServidor(rut);
+            if (srv && srv.valid === true) {
+                el.innerHTML = '<span class="ok">✔ RUT válido (servidor)</span>';
+            } else if (srv && srv.valid === false) {
+                el.innerHTML = '<span class="bad">✖ RUT inválido (servidor)</span> <small>El dígito verificador no coincide</small>';
+            } else {
+                el.innerHTML = '<span class="bad">✖ Error de validación</span> <small>' + (srv.error || 'Error desconocido') + '</small>';
+            }
+        });
+    </script>
+</body>
+</html>
